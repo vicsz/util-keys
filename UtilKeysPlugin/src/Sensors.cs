@@ -6,7 +6,7 @@ namespace Loupedeck.UtilKeysPlugin
     using System.Runtime.InteropServices;
     using System.Text;
 
-    // Reads hardware through IOKit: GPU load, temperatures and the battery.
+    // Reads hardware through IOKit: GPU load, disk traffic, temperatures and the battery.
     // Temperatures use the HID sensor API that Apple's own tools use. It's private, so an update could change it.
 
     internal static class Sensors
@@ -49,6 +49,36 @@ namespace Loupedeck.UtilKeysPlugin
             {
                 IOObjectRelease(gpu);
             }
+        }
+
+        // Bytes read from and written to every disk since boot, summed over the disk drivers.
+        public static (Double Read, Double Written) DiskBytes()
+        {
+            Double read = 0, written = 0;
+
+            if (IOServiceGetMatchingServices(0, IOServiceMatching("IOBlockStorageDriver"), out var drivers) != 0)
+            {
+                return (0, 0);
+            }
+
+            using var key = new CFString("Statistics");
+
+            for (var driver = IOIteratorNext(drivers); driver != 0; driver = IOIteratorNext(drivers))
+            {
+                var stats = IORegistryEntryCreateCFProperty(driver, key.Handle, IntPtr.Zero, 0);
+
+                if (stats != IntPtr.Zero)
+                {
+                    read += DictionaryNumber(stats, "Bytes (Read)") ?? 0;
+                    written += DictionaryNumber(stats, "Bytes (Write)") ?? 0;
+                    Release(stats);
+                }
+
+                IOObjectRelease(driver);
+            }
+
+            IOObjectRelease(drivers);
+            return (read, written);
         }
 
         // The average CPU die temperature in °C, or null if there are no CPU sensors.
@@ -280,6 +310,12 @@ namespace Loupedeck.UtilKeysPlugin
 
         [DllImport(IOKit)]
         private static extern UInt32 IOServiceGetMatchingService(UInt32 mainPort, IntPtr matching);
+
+        [DllImport(IOKit)]
+        private static extern Int32 IOServiceGetMatchingServices(UInt32 mainPort, IntPtr matching, out UInt32 iterator);
+
+        [DllImport(IOKit)]
+        private static extern UInt32 IOIteratorNext(UInt32 iterator);
 
         [DllImport(IOKit)]
         private static extern IntPtr IORegistryEntryCreateCFProperty(UInt32 entry, IntPtr key, IntPtr allocator, UInt32 options);

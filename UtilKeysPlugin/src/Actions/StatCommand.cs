@@ -48,7 +48,7 @@ namespace Loupedeck.UtilKeysPlugin
             bytes >= 1e12 ? Number(bytes / 1e12) + " TB" : Number(bytes / 1e9) + " GB";
 
         protected static String Speed(Double bytesPerSecond) =>
-            bytesPerSecond >= 1e6 ? Number(bytesPerSecond / 1e6) + " MB/s" : Number(bytesPerSecond / 1e3) + " KB/s";
+            bytesPerSecond >= 1e9 ? Number(bytesPerSecond / 1e9) + " GB/s" : bytesPerSecond >= 1e6 ? Number(bytesPerSecond / 1e6) + " MB/s" : Number(bytesPerSecond / 1e3) + " KB/s";
 
         // One decimal below 10, whole numbers above.
         protected static String Number(Double value) =>

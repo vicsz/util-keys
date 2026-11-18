@@ -29,6 +29,8 @@ namespace Loupedeck.UtilKeysPlugin
         private (UInt64 Busy, UInt64 Idle) _lastCpu;
         private (Int64 Down, Int64 Up)? _lastBytes;
         private DateTime _lastBytesAt;
+        private (Double Read, Double Written)? _lastDisk;
+        private DateTime _lastDiskAt;
 
         public event Action Changed;
 
@@ -58,6 +60,18 @@ namespace Loupedeck.UtilKeysPlugin
         public History DownHistory { get; } = new History();
 
         public History UpHistory { get; } = new History();
+
+        // Disk bytes per second, all disks together.
+        public Double DiskRead { get; private set; }
+
+        public Double DiskWrite { get; private set; }
+
+        public History DiskReadHistory { get; } = new History();
+
+        public History DiskWriteHistory { get; } = new History();
+
+        // The default microphone: whether there is one, whether an app is using it, and whether it's muted.
+        public MicState Mic { get; private set; }
 
         public AppUsage TopApp { get; private set; }
 
@@ -99,6 +113,7 @@ namespace Loupedeck.UtilKeysPlugin
                     PluginLog.Info("Monitor started");
                     this._tick = 0;
                     this._lastBytes = null;
+                    this._lastDisk = null;
                     this._lastCpu = Mac.CpuTicks();
                     this._timer = new Timer(_ => this.Sample(), null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
                 }
@@ -137,6 +152,8 @@ namespace Loupedeck.UtilKeysPlugin
                 this.ReadCpu();
                 this.ReadMemory();
                 this.ReadNetwork();
+                this.ReadDiskActivity();
+                this.Mic = Audio.Mic();
 
                 this.Gpu = Sensors.GpuLoad();
                 this.GpuHistory.Add(this.Gpu ?? 0);
@@ -236,6 +253,32 @@ namespace Loupedeck.UtilKeysPlugin
             this._lastBytesAt = now;
         }
 
+        private void ReadDiskActivity()
+        {
+            var (read, written) = Sensors.DiskBytes();
+            var now = DateTime.UtcNow;
+
+            if (this._lastDisk is (Double lastRead, Double lastWritten) && read >= lastRead && written >= lastWritten)
+            {
+                var seconds = Math.Max(0.1, (now - this._lastDiskAt).TotalSeconds);
+                this.DiskRead = (read - lastRead) / seconds;
+                this.DiskWrite = (written - lastWritten) / seconds;
+                this.DiskReadHistory.Add(this.DiskRead);
+                this.DiskWriteHistory.Add(this.DiskWrite);
+            }
+
+            this._lastDisk = (read, written);
+            this._lastDiskAt = now;
+        }
+
+        // Mutes or unmutes the default microphone, then reads it again so keys redraw at once.
+        public void SetMicMuted(Boolean muted)
+        {
+            Audio.SetMicMuted(muted);
+            this.Mic = Audio.Mic();
+            this.Changed?.Invoke();
+        }
+
         // Ethernet and Wi-Fi with their link speeds. Both can be connected at once.
         private void ReadLinks()
         {
@@ -310,7 +353,8 @@ namespace Loupedeck.UtilKeysPlugin
             FormattableString.Invariant($"disk {this.DiskFree / 1e9:0.0} free of {this.DiskTotal / 1e9:0.0} GB, down {this.Down / 1e3:0} KB/s up {this.Up / 1e3:0} KB/s, ") +
             FormattableString.Invariant($"top {this.TopApp?.Name} {this.TopApp?.Cpu:0}%, ") +
             FormattableString.Invariant($"GPU {this.Gpu:0}%, CPU {this.CpuTemperature:0}°C, battery {this.Battery?.Percent:0}%, ") +
-            FormattableString.Invariant($"Ethernet {this.EthernetSpeed / 1e6:0} Mb/s, Wi-Fi {this.WifiSpeed / 1e6:0} Mb/s SNR {this.WifiSnr} dB"));
+            FormattableString.Invariant($"Ethernet {this.EthernetSpeed / 1e6:0} Mb/s, Wi-Fi {this.WifiSpeed / 1e6:0} Mb/s SNR {this.WifiSnr} dB, ") +
+            FormattableString.Invariant($"disk read {this.DiskRead / 1e3:0} KB/s write {this.DiskWrite / 1e3:0} KB/s, mic {this.Mic}"));
     }
 
     public class AppUsage

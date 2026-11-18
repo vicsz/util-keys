@@ -1,6 +1,6 @@
 # Util Keys: agent notes
 
-C# Logi Actions plugin for the MX Creative Keypad (3×3 keys). Nine keys show live Mac system data; a tenth, Keep awake, is a switch. Read this before changing code.
+C# Logi Actions plugin for the MX Creative Keypad (3×3 keys). Most keys show live Mac system data; Mic and Keep awake are switches. Read this before changing code.
 
 ## Rules
 - Keep it minimal: no generated, optional or sample files.
@@ -17,11 +17,12 @@ C# Logi Actions plugin for the MX Creative Keypad (3×3 keys). Nine keys show li
 ## Code map (`UtilKeysPlugin/src/`)
 - `SystemMonitor.cs`: one sampler for all keys, once a second (temperature every 2 s, busiest app and connection every 5 s, disk and battery every 10 s). Keys call `Use` when drawn; it stops 5 s after the last draw.
 - `Mac.cs`: kernel, Foundation, Wi-Fi and AppKit calls (Mach host statistics, sysctl, disk space, CoreWLAN, app icons).
-- `Sensors.cs`: IOKit hardware readings: GPU, temperatures, battery.
+- `Sensors.cs`: IOKit hardware readings: GPU, disk traffic, temperatures, battery.
 - `KeepAwake.cs`: the Keep awake switch. Holds an IOKit power assertion (`PreventUserIdleSystemSleep`), like `caffeinate`; macOS drops it if the plugin exits. `KeepAwakeCommand` steps the cup's steam frames every 240 ms, only while on.
+- `Audio.cs`: the default microphone through CoreAudio: in use, muted, and muting it.
 - `History.cs`: the last 60 samples for graphs.
 - `KeyArt.cs`: draws every key: label, big value, graph, bar.
-- `Actions/StatCommand.cs`: what every key shares; taps do nothing by default. One file per key beside it. Connection's tap switches between Ethernet and Wi-Fi when both are up; Busiest app's opens Activity Monitor.
+- `Actions/StatCommand.cs`: what every key shares; taps do nothing by default. One file per key beside it. Connection's tap switches between Ethernet and Wi-Fi when both are up; Busiest app's opens Activity Monitor; Mic's mutes or unmutes.
 
 ## macOS sources
 - CPU: `host_statistics` `HOST_CPU_LOAD_INFO`, tick deltas between samples.
@@ -30,6 +31,8 @@ C# Logi Actions plugin for the MX Creative Keypad (3×3 keys). Nine keys show li
 - Disk: `NSURLVolumeAvailableCapacityForImportantUsageKey` on `/` (Finder's figure, counts purgeable space), via the Objective-C runtime.
 - Network: .NET `NetworkInterface` byte counters for `en*` interfaces that are up.
 - Busiest app: `ps -Axo pcpu=,comm=`, grouped by the first `.app` in each path. Icon: `NSWorkspace iconForFile:` on that `.app`, turned into a PNG and cached per app.
+- Disk activity: `IOBlockStorageDriver` registry property `Statistics` → `Bytes (Read)` and `Bytes (Write)`, summed over drivers, deltas between samples.
+- Mic: CoreAudio on the default input device (`dIn `): `gone` (running somewhere) for in use; `mute` on the input scope, or input `volm` when there's no mute switch.
 - GPU: `IOAccelerator` registry property `PerformanceStatistics` → `Device Utilization %`.
 - CPU temp: private HID sensor API (`IOHIDEventSystemClient`, usage page 0xFF00, usage 5), average of sensors named `PMU tdie*`. Checked on an M4 Mac mini.
 - Battery: `IOPSCopyPowerSourcesInfo`, the source whose `Type` is `InternalBattery`.

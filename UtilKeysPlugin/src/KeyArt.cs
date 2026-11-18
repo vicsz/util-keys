@@ -117,6 +117,19 @@ namespace Loupedeck.UtilKeysPlugin
                 $"<path d='M{x},{y - radius} A{radius},{radius} 0 {(f > 0.5 ? 1 : 0)} 1 {x + (radius * Math.Cos(angle)):0.#},{y + (radius * Math.Sin(angle)):0.#}' fill='none' stroke='{Hex(color)}' stroke-width='{Stroke}' stroke-linecap='round'/>");
         }
 
+        // A microphone centred on x with its capsule's middle near y. Muted draws a slash through it.
+        public static String Microphone(Single x, Single y, UInt32 color, Boolean muted)
+        {
+            String At(Single dx, Single dy) => FormattableString.Invariant($"{x + dx:0.#},{y + dy:0.#}");
+            var line = $"fill='none' stroke='{Hex(color)}' stroke-width='2.8' stroke-linecap='round'";
+            var mic = FormattableString.Invariant($"<rect x='{x - 6}' y='{y - 17}' width='12' height='20' rx='6' fill='{Hex(color)}'/>") +
+                $"<path d='M{At(-11, -3)} a11,11 0 0 0 22,0 M{At(0, 8)} v7 M{At(-6, 15)} h12' {line}/>";
+
+            return !muted ? mic : mic +
+                $"<path d='M{At(-15, -17)} L{At(15, 15)}' stroke='{Hex(Surface)}' stroke-width='7' stroke-linecap='round'/>" +
+                $"<path d='M{At(-15, -17)} L{At(15, 15)}' stroke='{Hex(color)}' stroke-width='3' stroke-linecap='round'/>";
+        }
+
         // A battery outline 22 high with its top at y, filled to fraction. x is its left edge; the body is 48 wide.
         // A bolt marks charging.
         public static String Battery(Int32 x, Int32 y, Double fraction, UInt32 color, Boolean charging)
