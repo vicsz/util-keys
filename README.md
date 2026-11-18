@@ -4,7 +4,7 @@
 
 <img src="keypad.svg" width="400" alt="The keypad: CPU 23%, Memory 21 GB, SSD 412 GB free, Network down 12.4 MB/s and up 820 KB/s, Battery 86% with 3:40 left, CPU temp 58°, Chrome as the busiest app at 142%, Wi-Fi at 907 Mb/s with 36 dB above noise, and GPU 31%">
 
-Nine keys, one number each, updated every second. Only Connection does anything when tapped (see below).
+Nine stats keys, one number each, updated every second, plus a Keep awake switch. Only Connection and Keep awake do anything when tapped (see below).
 
 ## Keys
 
@@ -19,6 +19,7 @@ Nine keys, one number each, updated every second. Only Connection does anything 
 | Busiest app | The app using the most CPU, and its CPU. Helpers count toward their app, so Chrome Helper counts as Chrome | Amber over 100% |
 | Connection | Ethernet or Wi-Fi and its link speed. With both connected it shows Ethernet, and a tap switches to Wi-Fi and back. On Wi-Fi, the Wi-Fi symbol and the number beside it are the signal above the noise, in dB, so a noisy room costs arcs | Wi-Fi: green from 25 dB, amber from 15 dB, red below. Red when offline |
 | GPU | GPU load, and the last minute as a graph | Purple, amber over 70%, red over 90% |
+| Keep awake | A switch: tap to stop the Mac sleeping on its own, tap again to allow it. The screen can still turn off. While on, the cup steams. It starts off whenever the plugin loads | Green cup while on, grey while off |
 
 Each key shows a label, one value and at most one graphic.
 
@@ -54,4 +55,5 @@ Or open this folder in Claude Code and say "install this for me". It reads `AGEN
 - CPU temp averages the CPU die sensors through a private macOS API (the one Apple's own tools use), so a macOS
   update could break it.
 - Wi-Fi's link speed is the rate macOS reports moment to moment, so it moves around.
+- Keep awake does what `caffeinate` does, from inside the plugin. If the plugin quits or crashes, macOS lets the Mac sleep again.
 - Battery shows "no battery" on desktop Macs. It has only been tried on a Mac mini so far.

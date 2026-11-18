@@ -15,6 +15,9 @@ namespace Loupedeck.UtilKeysPlugin
         // Gets the system readings shared by all keys. It samples only while a key is showing.
         public SystemMonitor Monitor { get; } = new SystemMonitor();
 
+        // Gets the Keep awake switch. It starts off each time the plugin loads.
+        public KeepAwake Awake { get; } = new KeepAwake();
+
         // Initializes a new instance of the plugin class.
         public UtilKeysPlugin()
         {
@@ -31,6 +34,10 @@ namespace Loupedeck.UtilKeysPlugin
         }
 
         // This method is called when the plugin is unloaded.
-        public override void Unload() => this.Monitor.Dispose();
+        public override void Unload()
+        {
+            this.Monitor.Dispose();
+            this.Awake.Dispose();
+        }
     }
 }

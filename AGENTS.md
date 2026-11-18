@@ -1,6 +1,6 @@
 # Util Keys: agent notes
 
-C# Logi Actions plugin for the MX Creative Keypad (3×3 keys). Its nine keys show live Mac system data. Read this before changing code.
+C# Logi Actions plugin for the MX Creative Keypad (3×3 keys). Nine keys show live Mac system data; a tenth, Keep awake, is a switch. Read this before changing code.
 
 ## Rules
 - Keep it minimal: no generated, optional or sample files.
@@ -18,6 +18,7 @@ C# Logi Actions plugin for the MX Creative Keypad (3×3 keys). Its nine keys sho
 - `SystemMonitor.cs`: one sampler for all keys, once a second (temperature every 2 s, busiest app and connection every 5 s, disk and battery every 10 s). Keys call `Use` when drawn; it stops 5 s after the last draw.
 - `Mac.cs`: kernel, Foundation and Wi-Fi calls (Mach host statistics, sysctl, disk space, CoreWLAN).
 - `Sensors.cs`: IOKit hardware readings: GPU, temperatures, battery.
+- `KeepAwake.cs`: the Keep awake switch. Holds an IOKit power assertion (`PreventUserIdleSystemSleep`), like `caffeinate`; macOS drops it if the plugin exits. `KeepAwakeCommand` steps the cup's steam frames every 240 ms, only while on.
 - `History.cs`: the last 60 samples for graphs.
 - `KeyArt.cs`: draws every key: label, big value, graph, bar.
 - `Actions/StatCommand.cs`: what every key shares; taps do nothing by default. One file per key beside it. Connection's tap switches between Ethernet and Wi-Fi when both are up.

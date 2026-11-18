@@ -16,8 +16,12 @@ namespace Loupedeck.UtilKeysPlugin
         public const UInt32 Blue = 0x49A8FF;
         public const UInt32 Purple = 0xB48CFF;
 
+        public const UInt32 Dim = 0x3A4653;
+
+        // How many frames the cup's steam takes to loop.
+        public const Int32 SteamFrames = 10;
+
         private const UInt32 Surface = 0x11161E;
-        private const UInt32 Dim = 0x3A4653;
         private const Int32 DesignSize = 116;
         private const String Semibold = "Helvetica Neue Medium";
 
@@ -108,6 +112,30 @@ namespace Loupedeck.UtilKeysPlugin
             }
 
             return symbol;
+        }
+
+        // A coffee cup on a saucer, x and y the top-left of its rim; the cup is 28 wide and 25 tall with the saucer.
+        // With a frame, three wisps of steam rise and fade one after another; frames loop every SteamFrames.
+        public static String Cup(Int32 x, Int32 y, UInt32 color, Int32? steamFrame)
+        {
+            String At(Single dx, Single dy) => FormattableString.Invariant($"{x + dx:0.#},{y + dy:0.#}");
+            var cup = $"<path d='M{At(0, 0)} h28 v8 a12 12 0 0 1 -12 12 h-4 a12 12 0 0 1 -12 -12 z' fill='none' stroke='{Hex(color)}' stroke-width='3' stroke-linejoin='round'/>" +
+                $"<path d='M{At(28, 3)} h3 a5.5 5.5 0 0 1 0 11 h-4' fill='none' stroke='{Hex(color)}' stroke-width='2.8' stroke-linecap='round'/>" +
+                $"<path d='M{At(-3, 25)} h34' stroke='{Hex(color)}' stroke-width='2.6' stroke-linecap='round'/>";
+
+            if (steamFrame is not Int32 frame)
+            {
+                return cup;
+            }
+
+            foreach (var (dx, offset) in new[] { (6, 0.0), (14, 1 / 3.0), (22, 2 / 3.0) })
+            {
+                var phase = ((Double)frame / SteamFrames + offset) % 1;
+                cup += FormattableString.Invariant(
+                    $"<path d='M{At(dx, -4 - (Single)(6 * phase))} q-2.5,-2.5 0,-5 q2.5,-2.5 0,-5' fill='none' stroke='{Hex(color)}' stroke-width='2.2' stroke-linecap='round' opacity='{Math.Sin(Math.PI * phase):0.##}'/>");
+            }
+
+            return cup;
         }
 
         // An Ethernet socket centred on x, y: a box with a latch notch and four pins.
