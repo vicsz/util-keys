@@ -2,30 +2,28 @@ namespace Loupedeck.UtilKeysPlugin
 {
     using System;
 
-    // Memory used of total. The bar is memory pressure, which says more than the GB figure: macOS fills
-    // spare memory with cache on purpose.
+    // Memory used. The bar is memory pressure, which says more than the GB figure: macOS fills spare memory with
+    // cache on purpose. Its colour is the pressure level: green, amber, red.
 
     public class MemoryCommand : StatCommand
     {
         public MemoryCommand()
-            : base("Memory", "Memory used of total, with a memory pressure bar")
+            : base("Memory", "Memory used, with a memory pressure bar")
         {
         }
 
         protected override BitmapImage Draw(PluginImageSize imageSize)
         {
             var monitor = this.Monitor;
-            var (color, word) = monitor.PressureLevel switch
+            var color = monitor.PressureLevel switch
             {
-                >= 4 => (KeyArt.Red, "critical"),
-                2 => (KeyArt.Amber, "high"),
-                _ => (KeyArt.Green, "ok"),
+                >= 4 => KeyArt.Red,
+                2 => KeyArt.Amber,
+                _ => KeyArt.Green,
             };
 
-            var total = Math.Round(monitor.MemoryTotal / 1073741824.0);
-            return KeyArt.Key(imageSize, "Memory", KeyArt.Bar(monitor.Pressure / 100.0, color, 86),
-                new Line(MemoryGb(monitor.MemoryUsed), 42, 26, KeyArt.Text, true),
-                new Line($"of {total:0} · pressure {word}", 68, 11, KeyArt.Muted));
+            return KeyArt.Key(imageSize, "Memory", KeyArt.Bar(monitor.Pressure / 100.0, color, Layout.BarTop),
+                new Line(MemoryGb(monitor.MemoryUsed), Layout.SmallValue, 26, KeyArt.Text, true));
         }
     }
 }

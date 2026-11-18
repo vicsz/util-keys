@@ -15,12 +15,12 @@ namespace Loupedeck.UtilKeysPlugin
         {
             if (this.Monitor.Gpu is not Double gpu)
             {
-                return KeyArt.Key(imageSize, "GPU", null, new Line("—", 42, 28, KeyArt.Muted), new Line("not reported", 68, 11, KeyArt.Muted));
+                return KeyArt.Key(imageSize, "GPU", null, new Line("—", Layout.Value, 28, KeyArt.Muted));
             }
 
             var color = gpu > 90 ? KeyArt.Red : gpu > 70 ? KeyArt.Amber : KeyArt.Purple;
-            var graph = KeyArt.Graph(this.Monitor.GpuHistory.ToArray(), 100, color, 64, 104);
-            return KeyArt.Key(imageSize, "GPU", graph, new Line($"{gpu:0}%", 42, 28, KeyArt.Text, true));
+            var graph = KeyArt.Graph(this.Monitor.GpuHistory.ToArray(), 100, color, Layout.GraphTop, Layout.GraphBottom);
+            return KeyArt.Key(imageSize, "GPU", graph, new Line($"{gpu:0}%", Layout.Value, 28, KeyArt.Text, true));
         }
     }
 }

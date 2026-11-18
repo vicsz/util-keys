@@ -15,8 +15,8 @@ namespace Loupedeck.UtilKeysPlugin
         {
             var cpu = this.Monitor.Cpu;
             var color = cpu > 90 ? KeyArt.Red : cpu > 70 ? KeyArt.Amber : KeyArt.Green;
-            var graph = KeyArt.Graph(this.Monitor.CpuHistory.ToArray(), 100, color, 64, 104);
-            return KeyArt.Key(imageSize, "CPU", graph, new Line($"{cpu:0}%", 42, 28, KeyArt.Text, true));
+            var graph = KeyArt.Graph(this.Monitor.CpuHistory.ToArray(), 100, color, Layout.GraphTop, Layout.GraphBottom);
+            return KeyArt.Key(imageSize, "CPU", graph, new Line($"{cpu:0}%", Layout.Value, 28, KeyArt.Text, true));
         }
     }
 }

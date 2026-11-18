@@ -1,10 +1,9 @@
 namespace Loupedeck.UtilKeysPlugin
 {
     using System;
-    using System.Linq;
 
-    // The app using the most CPU right now, helpers included, with its CPU and memory.
-    // Checked every 5 seconds, so the graph covers the last 5 minutes.
+    // The app using the most CPU right now, helpers included: its name, then its CPU.
+    // Checked every 5 seconds.
 
     public class BusiestAppCommand : StatCommand
     {
@@ -19,17 +18,13 @@ namespace Loupedeck.UtilKeysPlugin
 
             if (app == null)
             {
-                return KeyArt.Key(imageSize, "Busiest app", null, new Line("…", 44, 26, KeyArt.Muted));
+                return KeyArt.Key(imageSize, "Busiest app", null, new Line("…", Layout.Value, 28, KeyArt.Muted));
             }
 
-            var hot = app.Cpu > 100;
-            var history = this.Monitor.TopAppHistory.ToArray();
-            var graph = KeyArt.Graph(history, Math.Max(100, history.Max()), hot ? KeyArt.Amber : KeyArt.Green, 78, 104);
             var (name, size) = Fit(app.Name);
-
-            return KeyArt.Key(imageSize, "Busiest app", graph,
-                new Line(name, 42, size, KeyArt.Text, true),
-                new Line($"{app.Cpu:0}% CPU · {MemoryGb(app.Memory)}", 64, 11, hot ? KeyArt.Amber : KeyArt.Muted));
+            return KeyArt.Key(imageSize, "Busiest app", null,
+                new Line(name, Layout.Value - 2, size, KeyArt.Text, true),
+                new Line($"{app.Cpu:0}%", Layout.ZoneMiddle + 4, 28, app.Cpu > 100 ? KeyArt.Amber : KeyArt.Text, true));
         }
 
         // Drops the maker's name, then shrinks long names and cuts the longest.

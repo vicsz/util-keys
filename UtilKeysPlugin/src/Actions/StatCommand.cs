@@ -35,7 +35,7 @@ namespace Loupedeck.UtilKeysPlugin
         protected override BitmapImage GetCommandImage(String actionParameter, PluginImageSize imageSize)
         {
             this.Monitor.Use();
-            return this.Monitor.HasReadings ? this.Draw(imageSize) : KeyArt.Key(imageSize, this.DisplayName, null, new Line("…", 44, 26, KeyArt.Muted));
+            return this.Monitor.HasReadings ? this.Draw(imageSize) : KeyArt.Key(imageSize, this.DisplayName, null, new Line("…", Layout.Value, 28, KeyArt.Muted));
         }
 
         protected abstract BitmapImage Draw(PluginImageSize imageSize);

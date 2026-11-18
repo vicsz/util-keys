@@ -8,7 +8,6 @@ namespace Loupedeck.UtilKeysPlugin
     using System.Linq;
     using System.Net.NetworkInformation;
     using System.Threading;
-    using System.Threading.Tasks;
 
     // One sampler for every key. It reads once a second (slower readings less often) and raises Changed. It runs only while a key is being
     // drawn: each key calls Use when it draws, and the sampler stops when nothing has drawn for a few seconds.
@@ -17,9 +16,8 @@ namespace Loupedeck.UtilKeysPlugin
     {
         private const Int32 TemperatureEvery = 2;
         private const Int32 AppEvery = 5;
-        private const Int32 PingEvery = 5;
+        private const Int32 LinkEvery = 5;
         private const Int32 DiskEvery = 10;
-        private const String PingHost = "1.1.1.1";
         private static readonly TimeSpan IdleAfter = TimeSpan.FromSeconds(5);
 
         private readonly Object _lock = new Object();
@@ -30,7 +28,6 @@ namespace Loupedeck.UtilKeysPlugin
         private (UInt64 Busy, UInt64 Idle) _lastCpu;
         private (Int64 Down, Int64 Up)? _lastBytes;
         private DateTime _lastBytesAt;
-        private Int32 _pinging;
 
         public event Action Changed;
 
@@ -63,8 +60,6 @@ namespace Loupedeck.UtilKeysPlugin
 
         public AppUsage TopApp { get; private set; }
 
-        public History TopAppHistory { get; } = new History();
-
         // 0 to 100, or null if the GPU doesn't report it.
         public Double? Gpu { get; private set; }
 
@@ -75,25 +70,17 @@ namespace Loupedeck.UtilKeysPlugin
 
         public History TemperatureHistory { get; } = new History();
 
-        // The fastest fan in rpm, or null without fans.
-        public Double? Fan { get; private set; }
-
         // Null without a battery.
         public BatteryState Battery { get; private set; }
 
-        // Round trip to the internet in ms, or null when the last ping failed.
-        public Double? Ping { get; private set; }
+        // Ethernet's link speed in bits per second, or null when no Ethernet is connected.
+        public Double? EthernetSpeed { get; private set; }
 
-        public Boolean HasPinged { get; private set; }
+        // Wi-Fi's link speed in bits per second, or null when Wi-Fi isn't connected.
+        public Double? WifiSpeed { get; private set; }
 
-        // "Ethernet", "Wi-Fi" or null when neither is connected.
-        public String Link { get; private set; }
-
-        // Wi-Fi signal above the noise in dB, 0 on Ethernet.
+        // Wi-Fi signal above the noise in dB.
         public Int64 WifiSnr { get; private set; }
-
-        // The connection's link speed in bits per second, 0 if unknown.
-        public Double LinkSpeed { get; private set; }
 
         public Boolean HasReadings { get; private set; }
 
@@ -153,7 +140,6 @@ namespace Loupedeck.UtilKeysPlugin
                 if (this._tick % TemperatureEvery == 0)
                 {
                     this.CpuTemperature = Sensors.CpuTemperature();
-                    this.Fan = Sensors.FanSpeed();
                     this.TemperatureHistory.Add(this.CpuTemperature ?? 0);
                 }
 
@@ -163,15 +149,14 @@ namespace Loupedeck.UtilKeysPlugin
                     this.Battery = Sensors.Battery();
                 }
 
-                if (this._tick % PingEvery == 0)
+                if (this._tick % LinkEvery == 0)
                 {
-                    this.ReadInternet();
+                    this.ReadLinks();
                 }
 
                 if (this._tick % AppEvery == 0)
                 {
                     this.TopApp = ReadTopApp() ?? this.TopApp;
-                    this.TopAppHistory.Add(this.TopApp?.Cpu ?? 0);
                 }
 
                 if (this._tick == 1)
@@ -246,51 +231,23 @@ namespace Loupedeck.UtilKeysPlugin
             this._lastBytesAt = now;
         }
 
-        // Pings in the background, so a slow or lost reply never holds up the other readings.
-        // Wired beats Wi-Fi when both are connected, as macOS does by default.
-        private void ReadInternet()
+        // Ethernet and Wi-Fi with their link speeds. Both can be connected at once.
+        private void ReadLinks()
         {
             var (wifiName, rssi, noise, rate) = Mac.Wifi();
             var wired = NetworkInterface.GetAllNetworkInterfaces().FirstOrDefault(adapter =>
                 adapter.Name.StartsWith("en", StringComparison.Ordinal) && adapter.Name != wifiName
                 && adapter.OperationalStatus == OperationalStatus.Up && adapter.GetIPProperties().GatewayAddresses.Count > 0);
 
-            this.Link = wired != null ? "Ethernet" : rssi != 0 ? "Wi-Fi" : null;
-            this.WifiSnr = wired == null && rssi != 0 && noise != 0 ? rssi - noise : 0;
-            this.LinkSpeed = wired != null ? Math.Max(0, wired.Speed) : rate * 1e6;
-
-            if (Interlocked.Exchange(ref this._pinging, 1) == 1)
-            {
-                return;
-            }
-
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    using var ping = new Ping();
-                    var clock = Stopwatch.StartNew();
-                    var reply = await ping.SendPingAsync(PingHost, 2000);
-
-                    // .NET sometimes reports 0 ms for a real reply, so the stopwatch stands in.
-                    this.Ping = reply.Status != IPStatus.Success ? null : reply.RoundtripTime > 0 ? reply.RoundtripTime : clock.ElapsedMilliseconds;
-                }
-                catch (Exception)
-                {
-                    this.Ping = null;
-                }
-                finally
-                {
-                    this.HasPinged = true;
-                    Interlocked.Exchange(ref this._pinging, 0);
-                }
-            });
+            this.EthernetSpeed = wired == null ? null : Math.Max(0, wired.Speed);
+            this.WifiSpeed = rssi == 0 ? null : rate * 1e6;
+            this.WifiSnr = rssi != 0 && noise != 0 ? rssi - noise : 0;
         }
 
         // Adds up every process by the app it belongs to, so Chrome's helpers count as Chrome.
         private static AppUsage ReadTopApp()
         {
-            var start = new ProcessStartInfo("/bin/ps", "-Axo pcpu=,rss=,comm=")
+            var start = new ProcessStartInfo("/bin/ps", "-Axo pcpu=,comm=")
             {
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
@@ -304,19 +261,17 @@ namespace Loupedeck.UtilKeysPlugin
 
             foreach (var line in output.Split('\n'))
             {
-                var parts = line.Trim().Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+                var parts = line.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
 
-                if (parts.Length < 3 || parts[2] == "/bin/ps"
-                    || !Double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var cpu)
-                    || !Int64.TryParse(parts[1], out var rss))
+                if (parts.Length < 2 || parts[1] == "/bin/ps"
+                    || !Double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var cpu))
                 {
                     continue;
                 }
 
-                var name = AppName(parts[2].Trim());
+                var name = AppName(parts[1].Trim());
                 var app = apps.TryGetValue(name, out var found) ? found : apps[name] = new AppUsage { Name = name };
                 app.Cpu += cpu;
-                app.Memory += rss * 1024;
             }
 
             return apps.Values.OrderByDescending(app => app.Cpu).FirstOrDefault();
@@ -331,9 +286,9 @@ namespace Loupedeck.UtilKeysPlugin
         private void LogReadings() => PluginLog.Info(FormattableString.Invariant(
             $"Readings: CPU {this.Cpu:0}%, memory {this.MemoryUsed / 1073741824.0:0.0} of {this.MemoryTotal / 1073741824.0:0} GB, pressure {this.Pressure}% level {this.PressureLevel}, ") +
             FormattableString.Invariant($"disk {this.DiskFree / 1e9:0.0} free of {this.DiskTotal / 1e9:0.0} GB, down {this.Down / 1e3:0} KB/s up {this.Up / 1e3:0} KB/s, ") +
-            FormattableString.Invariant($"top {this.TopApp?.Name} {this.TopApp?.Cpu:0}% {this.TopApp?.Memory / 1e9:0.0} GB, ") +
-            FormattableString.Invariant($"GPU {this.Gpu:0}%, CPU {this.CpuTemperature:0}°C, fan {this.Fan:0} rpm, battery {this.Battery?.Percent:0}%, ") +
-            FormattableString.Invariant($"{this.Link} {this.LinkSpeed / 1e6:0} Mb/s SNR {this.WifiSnr} dB, ping {this.Ping:0} ms"));
+            FormattableString.Invariant($"top {this.TopApp?.Name} {this.TopApp?.Cpu:0}%, ") +
+            FormattableString.Invariant($"GPU {this.Gpu:0}%, CPU {this.CpuTemperature:0}°C, battery {this.Battery?.Percent:0}%, ") +
+            FormattableString.Invariant($"Ethernet {this.EthernetSpeed / 1e6:0} Mb/s, Wi-Fi {this.WifiSpeed / 1e6:0} Mb/s SNR {this.WifiSnr} dB"));
     }
 
     public class AppUsage
@@ -341,8 +296,5 @@ namespace Loupedeck.UtilKeysPlugin
         public String Name { get; set; }
 
         public Double Cpu { get; set; }
-
-        // Bytes. Resident memory, so shared pages count once per process.
-        public Int64 Memory { get; set; }
     }
 }

@@ -3,7 +3,7 @@ namespace Loupedeck.UtilKeysPlugin
     using System;
     using System.Linq;
 
-    // Draws every key: a muted label at the top, a big value, and a graph or bar at the bottom.
+    // Draws every key: a muted label at the top, a big value, and a graph, bar or icon at the bottom. Nothing else.
     // The keypad asks for 116 x 116 images, so the layout is written at that size.
 
     public static class KeyArt
@@ -24,7 +24,7 @@ namespace Loupedeck.UtilKeysPlugin
         // The SDK turns one-colour SVGs white. This invisible second colour keeps ours.
         private const String KeepColor = "<circle r='0' fill='#000001' stroke='none'/>";
 
-        // Draws a key. Each line is centred on its y. Shapes are SVG drawn on the 116 grid, under the text.
+        // Draws a key. Each line is centred on its y, across its own width. Shapes are SVG drawn on the 116 grid, under the text.
         public static BitmapImage Key(PluginImageSize imageSize, String label, String shapes, params Line[] lines)
         {
             using (var builder = new BitmapBuilder(imageSize))
@@ -39,7 +39,7 @@ namespace Loupedeck.UtilKeysPlugin
                     builder.DrawImage(BitmapImage.FromSvg(svg), 0, 0, pixels, pixels);
                 }
 
-                DrawLine(builder, new Line(label, 16, 14, Muted), scale);
+                DrawLine(builder, new Line(label, 15, 16, Muted), scale);
 
                 foreach (var line in lines)
                 {
@@ -82,27 +82,47 @@ namespace Loupedeck.UtilKeysPlugin
                 $"<rect x='{x0}' y='{y}' width='{Math.Max(h, width):0.#}' height='{h}' rx='{h / 2}' fill='{Hex(color)}'/>");
         }
 
-        // A battery outline filled to fraction.
-        public static String Battery(Double fraction, UInt32 color)
+        // A battery outline 22 high with its top at y, filled to fraction. x is its left edge; the body is 48 wide.
+        // A bolt marks charging.
+        public static String Battery(Int32 x, Int32 y, Double fraction, UInt32 color, Boolean charging)
         {
-            var width = 46 * (Single)Math.Clamp(fraction, 0, 1);
-            return $"<rect x='30' y='64' width='52' height='22' rx='5' fill='none' stroke='{Hex(Muted)}' stroke-width='2'/>" +
-                $"<rect x='83' y='70' width='4' height='10' rx='1.5' fill='{Hex(Muted)}'/>" +
-                (width > 0 ? FormattableString.Invariant($"<rect x='33' y='67' width='{width:0.#}' height='16' rx='3' fill='{Hex(color)}'/>") : String.Empty);
+            var width = 42 * (Single)Math.Clamp(fraction, 0, 1);
+            var bolt = FormattableString.Invariant($"M{x + 28},{y + 1} L{x + 16},{y + 12} H{x + 23} L{x + 20},{y + 21} L{x + 32},{y + 10} H{x + 25} Z");
+            return $"<rect x='{x}' y='{y}' width='48' height='22' rx='5' fill='none' stroke='{Hex(Muted)}' stroke-width='2'/>" +
+                $"<rect x='{x + 49}' y='{y + 6}' width='4' height='10' rx='1.5' fill='{Hex(Muted)}'/>" +
+                (width > 0 ? FormattableString.Invariant($"<rect x='{x + 3}' y='{y + 3}' width='{width:0.#}' height='16' rx='3' fill='{Hex(color)}'/>") : String.Empty) +
+                (charging ? $"<path d='{bolt}' fill='{Hex(Text)}' stroke='{Hex(Surface)}' stroke-width='1.5' stroke-linejoin='round'/>" : String.Empty);
         }
 
-        // Four rising bars, the first lit ones in color.
-        public static String SignalBars(Int32 lit, UInt32 color)
+        // The Wi-Fi fan: a dot and three arcs above it, centred on x with the dot at y. Unlit arcs are dim.
+        public static String WifiSymbol(Single x, Single y, Int32 litArcs, UInt32 color)
         {
-            var bars = String.Empty;
+            var symbol = FormattableString.Invariant($"<circle cx='{x}' cy='{y}' r='2.8' fill='{Hex(color)}'/>");
 
-            for (var i = 0; i < 4; i++)
+            for (var arc = 0; arc < 3; arc++)
             {
-                var height = (i + 1) * 6;
-                bars += $"<rect x='{40 + (i * 10)}' y='{100 - height}' width='6' height='{height}' rx='1.5' fill='{Hex(i < lit ? color : Dim)}'/>";
+                var radius = 6.5f * (arc + 1);
+                var reach = radius * MathF.Sqrt(0.5f);
+                symbol += FormattableString.Invariant(
+                    $"<path d='M{x - reach:0.#},{y - reach:0.#} A{radius},{radius} 0 0 1 {x + reach:0.#},{y - reach:0.#}' fill='none' stroke='{Hex(arc < litArcs ? color : Dim)}' stroke-width='3.8' stroke-linecap='round'/>");
             }
 
-            return bars;
+            return symbol;
+        }
+
+        // An Ethernet socket centred on x, y: a box with a latch notch and four pins.
+        public static String EthernetSocket(Single x, Single y, UInt32 color)
+        {
+            String At(Single dx, Single dy) => FormattableString.Invariant($"{x + dx:0.#},{y + dy:0.#}");
+            var pins = String.Empty;
+
+            foreach (var dx in new[] { -9f, -3f, 3f, 9f })
+            {
+                pins += $"<path d='M{At(dx, 5)} L{At(dx, 10)}' stroke='{Hex(color)}' stroke-width='2.2' stroke-linecap='round'/>";
+            }
+
+            return $"<path d='M{At(-17, 12)} L{At(-17, -7)} L{At(-10, -7)} L{At(-10, -12)} L{At(10, -12)} L{At(10, -7)} L{At(17, -7)} L{At(17, 12)} Z' " +
+                $"fill='none' stroke='{Hex(color)}' stroke-width='3.5' stroke-linejoin='round'/>{pins}";
         }
 
         public static String Hex(UInt32 color) => $"#{color:X6}";
@@ -110,12 +130,27 @@ namespace Loupedeck.UtilKeysPlugin
         private static void DrawLine(BitmapBuilder builder, Line line, Single scale)
         {
             var height = (Int32)(line.Size * 1.6);
-            builder.DrawText(line.Text, 0, Scaled(line.Y - (height / 2), scale), builder.Width, Scaled(height, scale),
+            builder.DrawText(line.Text, Scaled(line.X, scale), Scaled(line.Y - (height / 2), scale), Scaled(line.Width, scale), Scaled(height, scale),
                 BitmapColor.FromRgb(line.Color), Scaled(line.Size, scale), -1, -1, line.IsBold ? Semibold : null);
         }
 
         private static Int32 Scaled(Int32 value, Single scale) => (Int32)Math.Round(value * scale);
     }
 
-    public readonly record struct Line(String Text, Int32 Y, Int32 Size, UInt32 Color, Boolean IsBold = false);
+    public readonly record struct Line(String Text, Int32 Y, Int32 Size, UInt32 Color, Boolean IsBold = false, Int32 X = 0, Int32 Width = 116);
+
+    // Where things sit, the same on every key so values line up across the keypad: the label, the value on one
+    // shared row, then the graphic centred in the zone below. Text draws a little above its y, so the y values
+    // put each size's letters at the same height.
+    public static class Layout
+    {
+        public const Int32 Value = 47;
+        public const Int32 SmallValue = 46;
+        public const Int32 GraphTop = 64;
+        public const Int32 GraphBottom = 104;
+
+        // The middle of the zone below the value, for anything shorter than a graph.
+        public const Int32 ZoneMiddle = 84;
+        public const Int32 BarTop = ZoneMiddle - 4;
+    }
 }

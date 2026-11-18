@@ -2,48 +2,60 @@ namespace Loupedeck.UtilKeysPlugin
 {
     using System;
 
-    // Round trip to the internet (a ping to 1.1.1.1 every 5 seconds), and the connection with its link speed.
-    // On Wi-Fi the bars are signal above noise, so a strong signal in a noisy room still loses bars.
+    // Ethernet or Wi-Fi and its link speed. When both are connected it shows Ethernet, which macOS uses first,
+    // and a tap switches to the other. On Wi-Fi, the symbol's arcs and the number beside it are the signal above
+    // the noise, so a strong signal in a noisy room still loses arcs.
+    // (The class keeps its first name so keys already on the keypad stay put.)
 
     public class InternetCommand : StatCommand
     {
+        private Boolean _preferWifi;
+
         public InternetCommand()
-            : base("Internet", "Ping time to the internet, and the connection's speed and signal")
+            : base("Connection", "Ethernet or Wi-Fi and its link speed. Tap to switch when both are connected")
         {
+        }
+
+        protected override void RunCommand(String actionParameter)
+        {
+            if (this.Monitor.EthernetSpeed != null && this.Monitor.WifiSpeed != null)
+            {
+                this._preferWifi = !this._preferWifi;
+                this.ActionImageChanged();
+            }
         }
 
         protected override BitmapImage Draw(PluginImageSize imageSize)
         {
             var monitor = this.Monitor;
-            var bars = monitor.Link switch
-            {
-                "Ethernet" => 4,
-                "Wi-Fi" => monitor.WifiSnr switch { >= 40 => 4, >= 25 => 3, >= 15 => 2, _ => 1 },
-                _ => 0,
-            };
-            var link = monitor.Link == null ? "not connected"
-                : monitor.LinkSpeed > 0 ? $"{monitor.Link} · {LinkSpeed(monitor.LinkSpeed)}"
-                : monitor.Link;
+            var showWifi = monitor.WifiSpeed != null && (this._preferWifi || monitor.EthernetSpeed == null);
 
-            if (!monitor.HasPinged)
+            if (showWifi)
             {
-                return KeyArt.Key(imageSize, "Internet", KeyArt.SignalBars(bars, KeyArt.Muted), new Line("…", 42, 26, KeyArt.Muted), new Line(link, 66, 11, KeyArt.Muted));
+                var snr = monitor.WifiSnr;
+                var (arcs, color) = snr switch
+                {
+                    >= 40 => (3, KeyArt.Green),
+                    >= 25 => (2, KeyArt.Green),
+                    >= 15 => (1, KeyArt.Amber),
+                    _ => (0, KeyArt.Red),
+                };
+
+                return KeyArt.Key(imageSize, "Wi-Fi", KeyArt.WifiSymbol(34, Layout.ZoneMiddle + 9, arcs, color),
+                    new Line(LinkSpeed(monitor.WifiSpeed.Value), Layout.SmallValue, 26, KeyArt.Text, true),
+                    new Line($"{snr} dB", Layout.ZoneMiddle - 1, 16, color, true, 56, 54));
             }
 
-            var (value, color) = monitor.Ping switch
+            if (monitor.EthernetSpeed is Double ethernet)
             {
-                Double ms when ms < 60 => ($"{ms:0} ms", KeyArt.Green),
-                Double ms when ms < 150 => ($"{ms:0} ms", KeyArt.Amber),
-                Double ms => ($"{ms:0} ms", KeyArt.Red),
-                _ => ("Offline", KeyArt.Red),
-            };
+                return KeyArt.Key(imageSize, "Ethernet", KeyArt.EthernetSocket(58, Layout.ZoneMiddle, KeyArt.Green),
+                    new Line(LinkSpeed(ethernet), Layout.SmallValue, 26, KeyArt.Text, true));
+            }
 
-            return KeyArt.Key(imageSize, "Internet", KeyArt.SignalBars(bars, color),
-                new Line(value, 42, value.Length > 6 ? 22 : 26, color, true),
-                new Line(link, 66, 11, KeyArt.Muted));
+            return KeyArt.Key(imageSize, "Connection", null, new Line("Offline", Layout.SmallValue, 22, KeyArt.Red, true));
         }
 
         private static String LinkSpeed(Double bitsPerSecond) =>
-            bitsPerSecond >= 1e9 ? Number(bitsPerSecond / 1e9) + " Gb/s" : Number(bitsPerSecond / 1e6) + " Mb/s";
+            bitsPerSecond <= 0 ? "—" : bitsPerSecond >= 1e9 ? Number(bitsPerSecond / 1e9) + " Gb/s" : Number(bitsPerSecond / 1e6) + " Mb/s";
     }
 }

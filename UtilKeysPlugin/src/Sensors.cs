@@ -6,7 +6,7 @@ namespace Loupedeck.UtilKeysPlugin
     using System.Runtime.InteropServices;
     using System.Text;
 
-    // Reads hardware through IOKit: GPU load, temperatures, fans and the battery.
+    // Reads hardware through IOKit: GPU load, temperatures and the battery.
     // Temperatures use the HID sensor API that Apple's own tools use. It's private, so an update could change it.
 
     internal static class Sensors
@@ -20,7 +20,6 @@ namespace Loupedeck.UtilKeysPlugin
         private const Int64 TemperatureEvent = 15;
 
         private static IntPtr _hidClient;
-        private static UInt32 _smc;
 
         // GPU load, 0 to 100, or null if the GPU doesn't report it.
         public static Double? GpuLoad()
@@ -112,19 +111,6 @@ namespace Loupedeck.UtilKeysPlugin
             return sensors;
         }
 
-        // The fastest fan's speed in rpm, or null if the Mac has no fans.
-        public static Double? FanSpeed()
-        {
-            var count = SmcRead("FNum");
-
-            if (count is not > 0)
-            {
-                return null;
-            }
-
-            return Enumerable.Range(0, (Int32)count.Value).Select(fan => SmcRead($"F{fan}Ac") ?? 0).Max();
-        }
-
         // The internal battery, or null if there isn't one.
         public static BatteryState Battery()
         {
@@ -171,75 +157,6 @@ namespace Loupedeck.UtilKeysPlugin
                 Release(info);
             }
         }
-
-        // Reads one SMC key as a number. Fans use "flt " on Apple silicon and "fpe2" on Intel.
-        private static Double? SmcRead(String key)
-        {
-            if (_smc == 0)
-            {
-                var service = IOServiceGetMatchingService(0, IOServiceMatching("AppleSMC"));
-
-                if (service == 0)
-                {
-                    return null;
-                }
-
-                var opened = IOServiceOpen(service, MachTaskSelf(), 0, out _smc);
-                IOObjectRelease(service);
-
-                if (opened != 0)
-                {
-                    _smc = 0;
-                    return null;
-                }
-            }
-
-            const Int32 size = 80, keyInfoSize = 28, keyInfoType = 32, data8 = 42, bytes = 48;
-            var code = (UInt32)((key[0] << 24) | (key[1] << 16) | (key[2] << 8) | key[3]);
-
-            var input = new Byte[size];
-            BitConverter.GetBytes(code).CopyTo(input, 0);
-            input[data8] = 9;
-            var info = SmcCall(input);
-
-            if (info == null || info[40] != 0)
-            {
-                return null;
-            }
-
-            var length = BitConverter.ToUInt32(info, keyInfoSize);
-            var type = Encoding.ASCII.GetString(BitConverter.GetBytes(BitConverter.ToUInt32(info, keyInfoType)).Reverse().ToArray());
-
-            input = new Byte[size];
-            BitConverter.GetBytes(code).CopyTo(input, 0);
-            BitConverter.GetBytes(length).CopyTo(input, keyInfoSize);
-            input[data8] = 5;
-            var data = SmcCall(input);
-
-            if (data == null || data[40] != 0)
-            {
-                return null;
-            }
-
-            return type switch
-            {
-                "flt " => BitConverter.ToSingle(data, bytes),
-                "fpe2" => ((data[bytes] << 8) | data[bytes + 1]) / 4.0,
-                "ui8 " => data[bytes],
-                "ui16" => (data[bytes] << 8) | data[bytes + 1],
-                _ => null,
-            };
-        }
-
-        private static Byte[] SmcCall(Byte[] input)
-        {
-            var output = new Byte[input.Length];
-            var outputSize = (UIntPtr)output.Length;
-            return IOConnectCallStructMethod(_smc, 2, input, (UIntPtr)input.Length, output, ref outputSize) == 0 ? output : null;
-        }
-
-        private static UInt32 MachTaskSelf() =>
-            (UInt32)Marshal.ReadInt32(NativeLibrary.GetExport(NativeLibrary.Load("/usr/lib/libSystem.dylib"), "mach_task_self_"));
 
         private static IntPtr CFExport(String name) => NativeLibrary.GetExport(NativeLibrary.Load(CoreFoundation), name);
 
@@ -369,12 +286,6 @@ namespace Loupedeck.UtilKeysPlugin
 
         [DllImport(IOKit)]
         private static extern Int32 IOObjectRelease(UInt32 entry);
-
-        [DllImport(IOKit)]
-        private static extern Int32 IOServiceOpen(UInt32 service, UInt32 owningTask, UInt32 type, out UInt32 connection);
-
-        [DllImport(IOKit)]
-        private static extern Int32 IOConnectCallStructMethod(UInt32 connection, UInt32 selector, Byte[] input, UIntPtr inputSize, Byte[] output, ref UIntPtr outputSize);
 
         [DllImport(IOKit)]
         private static extern IntPtr IOHIDEventSystemClientCreate(IntPtr allocator);
