@@ -4,7 +4,7 @@ namespace Loupedeck.UtilKeysPlugin
     using System.Runtime.InteropServices;
     using System.Text;
 
-    // Calls into macOS: the kernel, Foundation and Wi-Fi. IOKit hardware readings are in Sensors.cs.
+    // Calls into macOS: the kernel, Foundation, Wi-Fi and app icons. IOKit hardware readings are in Sensors.cs.
 
     internal static class Mac
     {
@@ -20,6 +20,7 @@ namespace Loupedeck.UtilKeysPlugin
         {
             NativeLibrary.Load("/System/Library/Frameworks/Foundation.framework/Foundation");
             NativeLibrary.Load("/System/Library/Frameworks/CoreWLAN.framework/CoreWLAN");
+            NativeLibrary.Load("/System/Library/Frameworks/AppKit.framework/AppKit");
         }
 
         // Total CPU ticks for all cores since boot: busy (user, system, nice) and idle.
@@ -129,6 +130,55 @@ namespace Loupedeck.UtilKeysPlugin
             }
         }
 
+        // An app's icon as a PNG about pixels across, the one Finder shows, or null if macOS has none for it.
+        public static Byte[] AppIcon(String appPath, Int32 pixels)
+        {
+            var pool = objc_autoreleasePoolPush();
+
+            try
+            {
+                var workspace = objc_msgSend(Class("NSWorkspace"), Selector("sharedWorkspace"));
+                var image = Send(workspace, "iconForFile:", NSString(appPath));
+                var rect = new Rect { Width = pixels, Height = pixels };
+                var picture = image == IntPtr.Zero ? IntPtr.Zero : SendImage(image, Selector("CGImageForProposedRect:context:hints:"), ref rect, IntPtr.Zero, IntPtr.Zero);
+
+                if (picture == IntPtr.Zero)
+                {
+                    return null;
+                }
+
+                var bitmap = Send(objc_msgSend(Class("NSBitmapImageRep"), Selector("alloc")), "initWithCGImage:", picture);
+
+                try
+                {
+                    const UInt64 Png = 4;
+                    var data = SendPng(bitmap, Selector("representationUsingType:properties:"), Png, objc_msgSend(Class("NSDictionary"), Selector("dictionary")));
+
+                    if (data == IntPtr.Zero)
+                    {
+                        return null;
+                    }
+
+                    var bytes = new Byte[SendLong(data, Selector("length"))];
+                    Marshal.Copy(objc_msgSend(data, Selector("bytes")), bytes, 0, bytes.Length);
+                    return bytes;
+                }
+                finally
+                {
+                    objc_msgSend(bitmap, Selector("release"));
+                }
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Warning(ex, $"Couldn't read the icon for {appPath}");
+                return null;
+            }
+            finally
+            {
+                objc_autoreleasePoolPop(pool);
+            }
+        }
+
         private static UInt64 SysctlLong(String name)
         {
             UInt64 value = 0;
@@ -197,5 +247,20 @@ namespace Loupedeck.UtilKeysPlugin
 
         [DllImport(ObjC, EntryPoint = "objc_msgSend")]
         private static extern Double SendDouble(IntPtr target, IntPtr selector);
+
+        [DllImport(ObjC, EntryPoint = "objc_msgSend")]
+        private static extern IntPtr SendImage(IntPtr target, IntPtr selector, ref Rect rect, IntPtr context, IntPtr hints);
+
+        [DllImport(ObjC, EntryPoint = "objc_msgSend")]
+        private static extern IntPtr SendPng(IntPtr target, IntPtr selector, UInt64 type, IntPtr properties);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct Rect
+        {
+            public Double X;
+            public Double Y;
+            public Double Width;
+            public Double Height;
+        }
     }
 }

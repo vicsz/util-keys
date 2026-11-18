@@ -16,12 +16,12 @@ C# Logi Actions plugin for the MX Creative Keypad (3×3 keys). Nine keys show li
 
 ## Code map (`UtilKeysPlugin/src/`)
 - `SystemMonitor.cs`: one sampler for all keys, once a second (temperature every 2 s, busiest app and connection every 5 s, disk and battery every 10 s). Keys call `Use` when drawn; it stops 5 s after the last draw.
-- `Mac.cs`: kernel, Foundation and Wi-Fi calls (Mach host statistics, sysctl, disk space, CoreWLAN).
+- `Mac.cs`: kernel, Foundation, Wi-Fi and AppKit calls (Mach host statistics, sysctl, disk space, CoreWLAN, app icons).
 - `Sensors.cs`: IOKit hardware readings: GPU, temperatures, battery.
 - `KeepAwake.cs`: the Keep awake switch. Holds an IOKit power assertion (`PreventUserIdleSystemSleep`), like `caffeinate`; macOS drops it if the plugin exits. `KeepAwakeCommand` steps the cup's steam frames every 240 ms, only while on.
 - `History.cs`: the last 60 samples for graphs.
 - `KeyArt.cs`: draws every key: label, big value, graph, bar.
-- `Actions/StatCommand.cs`: what every key shares; taps do nothing by default. One file per key beside it. Connection's tap switches between Ethernet and Wi-Fi when both are up.
+- `Actions/StatCommand.cs`: what every key shares; taps do nothing by default. One file per key beside it. Connection's tap switches between Ethernet and Wi-Fi when both are up; Busiest app's opens Activity Monitor.
 
 ## macOS sources
 - CPU: `host_statistics` `HOST_CPU_LOAD_INFO`, tick deltas between samples.
@@ -29,7 +29,7 @@ C# Logi Actions plugin for the MX Creative Keypad (3×3 keys). Nine keys show li
 - Pressure: level from `kern.memorystatus_vm_pressure_level` (1, 2, 4); bar is 100 − `kern.memorystatus_level`.
 - Disk: `NSURLVolumeAvailableCapacityForImportantUsageKey` on `/` (Finder's figure, counts purgeable space), via the Objective-C runtime.
 - Network: .NET `NetworkInterface` byte counters for `en*` interfaces that are up.
-- Busiest app: `ps -Axo pcpu=,rss=,comm=`, grouped by the first `.app` in each path.
+- Busiest app: `ps -Axo pcpu=,comm=`, grouped by the first `.app` in each path. Icon: `NSWorkspace iconForFile:` on that `.app`, turned into a PNG and cached per app.
 - GPU: `IOAccelerator` registry property `PerformanceStatistics` → `Device Utilization %`.
 - CPU temp: private HID sensor API (`IOHIDEventSystemClient`, usage page 0xFF00, usage 5), average of sensors named `PMU tdie*`. Checked on an M4 Mac mini.
 - Battery: `IOPSCopyPowerSourcesInfo`, the source whose `Type` is `InternalBattery`.

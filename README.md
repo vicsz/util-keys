@@ -4,7 +4,7 @@
 
 <img src="keypad.svg" width="400" alt="The keypad: CPU 23%, Memory 21 GB, SSD 412 GB free, Network down 12.4 MB/s and up 820 KB/s, Battery 86% with 3:40 left, CPU temp 58°, Chrome as the busiest app at 142%, Wi-Fi at 907 Mb/s with 36 dB above noise, and GPU 31%">
 
-Nine stats keys, one number each, updated every second, plus a Keep awake switch. Only Connection and Keep awake do anything when tapped (see below).
+Nine stats keys, one number each, updated every second, plus a Keep awake switch. Only Busiest app, Connection and Keep awake do anything when tapped (see below).
 
 ## Keys
 
@@ -16,7 +16,7 @@ Nine stats keys, one number each, updated every second, plus a Keep awake switch
 | Network | Download and upload speeds, each with a graph of the last minute | Blue down, purple up |
 | Battery | Charge, and beside the icon the time left (h:mm), or time to full with a bolt while charging | Green, amber under 20%, red under 10% |
 | CPU temp | CPU temperature, and the last two minutes as a graph | Green, amber from 80°, red from 95° |
-| Busiest app | The app using the most CPU, and its CPU. Helpers count toward their app, so Chrome Helper counts as Chrome | Amber over 100% |
+| Busiest app | The app using the most CPU, then its icon in a ring, and its CPU. The ring fills at one full core (100%). Helpers count toward their app, so Chrome Helper counts as Chrome. A process that isn't part of an app shows a plain terminal tile. Tap to open Activity Monitor | Ring green, amber over 100% |
 | Connection | Ethernet or Wi-Fi and its link speed. With both connected it shows Ethernet, and a tap switches to Wi-Fi and back. On Wi-Fi, the Wi-Fi symbol and the number beside it are the signal above the noise, in dB, so a noisy room costs arcs | Wi-Fi: green from 25 dB, amber from 15 dB, red below. Red when offline |
 | GPU | GPU load, and the last minute as a graph | Purple, amber over 70%, red over 90% |
 | Keep awake | A switch: tap to stop the Mac sleeping on its own, tap again to allow it. The screen can still turn off. While on, the cup steams. It starts off whenever the plugin loads | Green cup while on, grey while off |

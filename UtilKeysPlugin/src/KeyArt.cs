@@ -29,7 +29,11 @@ namespace Loupedeck.UtilKeysPlugin
         private const String KeepColor = "<circle r='0' fill='#000001' stroke='none'/>";
 
         // Draws a key. Each line is centred on its y, across its own width. Shapes are SVG drawn on the 116 grid, under the text.
-        public static BitmapImage Key(PluginImageSize imageSize, String label, String shapes, params Line[] lines)
+        public static BitmapImage Key(PluginImageSize imageSize, String label, String shapes, params Line[] lines) =>
+            Key(imageSize, label, shapes, null, lines);
+
+        // The same, with a picture (a PNG) drawn over the shapes; picture.X, Y and Size are on the 116 grid.
+        public static BitmapImage Key(PluginImageSize imageSize, String label, String shapes, (Byte[] Png, Int32 X, Int32 Y, Int32 Size)? picture, params Line[] lines)
         {
             using (var builder = new BitmapBuilder(imageSize))
             {
@@ -41,6 +45,11 @@ namespace Loupedeck.UtilKeysPlugin
                     var pixels = Scaled(DesignSize, scale);
                     var svg = $"<svg xmlns='http://www.w3.org/2000/svg' width='{pixels}' height='{pixels}' viewBox='0 0 {DesignSize} {DesignSize}'>{shapes}{KeepColor}</svg>";
                     builder.DrawImage(BitmapImage.FromSvg(svg), 0, 0, pixels, pixels);
+                }
+
+                if (picture is (Byte[] png, Int32 x, Int32 y, Int32 size) && png != null)
+                {
+                    builder.DrawImage(png, Scaled(x, scale), Scaled(y, scale), Scaled(size, scale), Scaled(size, scale));
                 }
 
                 DrawLine(builder, new Line(label, 15, 16, Muted), scale);
@@ -84,6 +93,28 @@ namespace Loupedeck.UtilKeysPlugin
             // A sliver narrower than the bar's height would draw as a squashed dot, so it starts at a full circle.
             return width <= 0 ? bar : bar + FormattableString.Invariant(
                 $"<rect x='{x0}' y='{y}' width='{Math.Max(h, width):0.#}' height='{h}' rx='{h / 2}' fill='{Hex(color)}'/>");
+        }
+
+        // A ring centred on x, y that fills clockwise from the top. fraction is 0 to 1; anything over 1 is a full ring.
+        public static String Ring(Single x, Single y, Single radius, Double fraction, UInt32 color)
+        {
+            const Single Stroke = 3.5f;
+            var track = FormattableString.Invariant($"<circle cx='{x}' cy='{y}' r='{radius}' fill='none' stroke='{Hex(Dim)}' stroke-width='{Stroke}'/>");
+            var f = Math.Clamp(fraction, 0, 1);
+
+            if (f >= 1)
+            {
+                return track + FormattableString.Invariant($"<circle cx='{x}' cy='{y}' r='{radius}' fill='none' stroke='{Hex(color)}' stroke-width='{Stroke}'/>");
+            }
+
+            if (f <= 0)
+            {
+                return track;
+            }
+
+            var angle = (2 * Math.PI * f) - (Math.PI / 2);
+            return track + FormattableString.Invariant(
+                $"<path d='M{x},{y - radius} A{radius},{radius} 0 {(f > 0.5 ? 1 : 0)} 1 {x + (radius * Math.Cos(angle)):0.#},{y + (radius * Math.Sin(angle)):0.#}' fill='none' stroke='{Hex(color)}' stroke-width='{Stroke}' stroke-linecap='round'/>");
         }
 
         // A battery outline 22 high with its top at y, filled to fraction. x is its left edge; the body is 48 wide.
@@ -136,6 +167,15 @@ namespace Loupedeck.UtilKeysPlugin
             }
 
             return cup;
+        }
+
+        // A plain terminal tile, size across with its top-left at x, y: stands in for a process that has no app icon.
+        public static String TerminalTile(Int32 x, Int32 y, Int32 size)
+        {
+            var scale = FormattableString.Invariant($"{size / 34.0:0.###}");
+            return $"<g transform='translate({x} {y}) scale({scale})'><rect x='1' y='1' width='32' height='32' rx='8' fill='#2A323D' stroke='{Hex(Dim)}' stroke-width='1.5'/>" +
+                $"<path d='M9,11 l6,6 l-6,6' fill='none' stroke='{Hex(Muted)}' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/>" +
+                $"<path d='M18,24 h8' stroke='{Hex(Muted)}' stroke-width='2.6' stroke-linecap='round'/></g>";
         }
 
         // An Ethernet socket centred on x, y: a box with a latch notch and four pins.

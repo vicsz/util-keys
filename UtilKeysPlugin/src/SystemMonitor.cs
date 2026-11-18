@@ -21,6 +21,7 @@ namespace Loupedeck.UtilKeysPlugin
         private static readonly TimeSpan IdleAfter = TimeSpan.FromSeconds(5);
 
         private readonly Object _lock = new Object();
+        private readonly Dictionary<String, Byte[]> _icons = new Dictionary<String, Byte[]>();
         private Timer _timer;
         private DateTime _lastUse;
         private Int32 _tick;
@@ -59,6 +60,9 @@ namespace Loupedeck.UtilKeysPlugin
         public History UpHistory { get; } = new History();
 
         public AppUsage TopApp { get; private set; }
+
+        // The busiest app's icon as a PNG, or null when it has none (a background process, not an app).
+        public Byte[] TopAppIcon { get; private set; }
 
         // 0 to 100, or null if the GPU doesn't report it.
         public Double? Gpu { get; private set; }
@@ -157,6 +161,7 @@ namespace Loupedeck.UtilKeysPlugin
                 if (this._tick % AppEvery == 0)
                 {
                     this.TopApp = ReadTopApp() ?? this.TopApp;
+                    this.TopAppIcon = this.Icon(this.TopApp?.Path);
                 }
 
                 if (this._tick == 1)
@@ -269,18 +274,35 @@ namespace Loupedeck.UtilKeysPlugin
                     continue;
                 }
 
-                var name = AppName(parts[1].Trim());
-                var app = apps.TryGetValue(name, out var found) ? found : apps[name] = new AppUsage { Name = name };
+                var (name, path) = AppName(parts[1].Trim());
+                var app = apps.TryGetValue(name, out var found) ? found : apps[name] = new AppUsage { Name = name, Path = path };
                 app.Cpu += cpu;
             }
 
             return apps.Values.OrderByDescending(app => app.Cpu).FirstOrDefault();
         }
 
-        private static String AppName(String path)
+        // The app a process belongs to, and the app's path; a process outside any app has no path.
+        private static (String Name, String Path) AppName(String path)
         {
             var app = path.IndexOf(".app/", StringComparison.Ordinal);
-            return app > 0 ? Path.GetFileName(path.Substring(0, app)) : Path.GetFileName(path);
+            return app > 0 ? (Path.GetFileName(path.Substring(0, app)), path.Substring(0, app + 4)) : (Path.GetFileName(path), null);
+        }
+
+        // Icons are read once per app and kept.
+        private Byte[] Icon(String appPath)
+        {
+            if (appPath == null)
+            {
+                return null;
+            }
+
+            if (!this._icons.TryGetValue(appPath, out var icon))
+            {
+                icon = this._icons[appPath] = Mac.AppIcon(appPath, 128);
+            }
+
+            return icon;
         }
 
         private void LogReadings() => PluginLog.Info(FormattableString.Invariant(
@@ -294,6 +316,9 @@ namespace Loupedeck.UtilKeysPlugin
     public class AppUsage
     {
         public String Name { get; set; }
+
+        // The .app bundle, or null for a process that isn't part of an app.
+        public String Path { get; set; }
 
         public Double Cpu { get; set; }
     }
