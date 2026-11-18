@@ -4,7 +4,7 @@
 
 <img src="keypad.svg" width="400" alt="The keypad: CPU 23%, Memory 21 GB, SSD 412 GB free, Network down 12.4 MB/s and up 820 KB/s, Battery 86% with 3:40 left, CPU temp 58°, Chrome as the busiest app at 142%, Wi-Fi at 907 Mb/s with 36 dB above noise, and GPU 31%">
 
-Stats keys that update every second, plus two switches: Mic and Keep awake. Only Busiest app, Connection, Mic and Keep awake do anything when tapped (see below).
+Stats keys that update every second, plus Mic and Keep awake switches and a Pomodoro timer. Only Busiest app, Connection, Mic, Keep awake and Pomodoro do anything when tapped (see below).
 
 ## Keys
 
@@ -21,6 +21,7 @@ Stats keys that update every second, plus two switches: Mic and Keep awake. Only
 | Connection | Ethernet or Wi-Fi and its link speed. With both connected it shows Ethernet, and a tap switches to Wi-Fi and back. On Wi-Fi, the Wi-Fi symbol and the number beside it are the signal above the noise, in dB, so a noisy room costs arcs | Wi-Fi: green from 25 dB, amber from 15 dB, red below. Red when offline |
 | GPU | GPU load, and the last minute as a graph | Purple, amber over 70%, red over 90% |
 | Mic | The default microphone: Live while an app is recording from it, On while it's free, Muted when muted. Tap to mute or unmute | Red while live, green while on, grey while muted |
+| Pomodoro | A 25-minute timer. Tap to start, tap to pause, tap to carry on; hold to reset. The ring round the tomato fills as time runs, and when it's full a sound plays and the key stays Done until tapped | Ring green, amber for the last 2 minutes, grey while paused; the key glows green when done |
 | Keep awake | A switch: tap to stop the Mac sleeping on its own, tap again to allow it. The screen can still turn off. While on, the cup steams. It starts off whenever the plugin loads | Green cup while on, grey while off |
 
 Each key shows a label, one value and at most one graphic.

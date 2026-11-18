@@ -130,6 +130,19 @@ namespace Loupedeck.UtilKeysPlugin
                 $"<path d='M{At(-15, -17)} L{At(15, 15)}' stroke='{Hex(color)}' stroke-width='3' stroke-linecap='round'/>";
         }
 
+        // A small tomato centred on x, y, about 19 across with its leaves on top.
+        public static String Tomato(Single x, Single y, UInt32 color, UInt32 leaves)
+        {
+            String At(Single dx, Single dy) => FormattableString.Invariant($"{x + dx:0.#},{y + dy:0.#}");
+            return FormattableString.Invariant($"<circle cx='{x}' cy='{y + 1.5f}' r='9.5' fill='{Hex(color)}'/>") +
+                $"<path d='M{At(0, -7)} l-5,-3 M{At(0, -7)} l5,-3 M{At(0, -7)} l0,-5' stroke='{Hex(leaves)}' stroke-width='2.4' stroke-linecap='round'/>";
+        }
+
+        // Lights the whole key: a tint and a border in color, drawn under everything else.
+        public static String Glow(UInt32 color) =>
+            $"<rect width='116' height='116' fill='{Hex(color)}' fill-opacity='0.16'/>" +
+            $"<rect x='1.5' y='1.5' width='113' height='113' rx='13' fill='none' stroke='{Hex(color)}' stroke-width='3'/>";
+
         // A battery outline 22 high with its top at y, filled to fraction. x is its left edge; the body is 48 wide.
         // A bolt marks charging.
         public static String Battery(Int32 x, Int32 y, Double fraction, UInt32 color, Boolean charging)

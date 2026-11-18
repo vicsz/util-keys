@@ -1,6 +1,6 @@
 # Util Keys: agent notes
 
-C# Logi Actions plugin for the MX Creative Keypad (3×3 keys). Most keys show live Mac system data; Mic and Keep awake are switches. Read this before changing code.
+C# Logi Actions plugin for the MX Creative Keypad (3×3 keys). Most keys show live Mac system data; Mic and Keep awake are switches, and Pomodoro is a 25-minute timer. Read this before changing code.
 
 ## Rules
 - Keep it minimal: no generated, optional or sample files.
@@ -22,7 +22,7 @@ C# Logi Actions plugin for the MX Creative Keypad (3×3 keys). Most keys show li
 - `Audio.cs`: the default microphone through CoreAudio: in use, muted, and muting it.
 - `History.cs`: the last 60 samples for graphs.
 - `KeyArt.cs`: draws every key: label, big value, graph, bar.
-- `Actions/StatCommand.cs`: what every key shares; taps do nothing by default. One file per key beside it. Connection's tap switches between Ethernet and Wi-Fi when both are up; Busiest app's opens Activity Monitor; Mic's mutes or unmutes.
+- `Actions/StatCommand.cs`: what every key shares; taps do nothing by default. One file per key beside it. Connection's tap switches between Ethernet and Wi-Fi when both are up; Busiest app's opens Activity Monitor; Mic's mutes or unmutes. `PomodoroCommand` and `KeepAwakeCommand` don't use the monitor; each runs its own timer only while active.
 
 ## macOS sources
 - CPU: `host_statistics` `HOST_CPU_LOAD_INFO`, tick deltas between samples.
