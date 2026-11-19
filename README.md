@@ -1,5 +1,10 @@
 # Util Keys
 
+> [!NOTE]
+> **Moved to [Keybo](https://github.com/vicsz/keybo).** Util Keys and Claude Keys are now one plugin, Keybo: the same
+> keys, plus a pixel robot that keeps an eye on your Mac and your agents. Get it from
+> [Keybo's releases](https://github.com/vicsz/keybo/releases/latest). This repo is archived.
+
 **Live Mac system stats on a Logitech MX Creative Keypad, like iStat Menus on your desk.**
 
 <img src="keypad.svg" width="400" alt="The keypad: CPU 23%, Memory 21 GB, SSD 412 GB free, Network down 12.4 MB/s and up 820 KB/s, Battery 86% with 3:40 left, CPU temp 58°, Chrome as the busiest app at 142%, Wi-Fi at 907 Mb/s with 36 dB above noise, and GPU 31%">
